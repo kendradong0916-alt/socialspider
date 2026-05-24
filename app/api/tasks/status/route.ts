@@ -1,4 +1,4 @@
-// app/api/tasks/status.ts
+// app/api/tasks/status/route.ts
 // 查询任务状态
 
 import { NextRequest, NextResponse } from 'next/server';

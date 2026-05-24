@@ -1,4 +1,4 @@
-// app/api/tasks/create.ts
+// app/api/tasks/create/route.ts
 // 创建数据采集任务
 
 import { NextRequest, NextResponse } from 'next/server';

@@ -1,4 +1,4 @@
-// app/api/profile/stream.ts
+// app/api/profile/stream/route.ts
 // 实时浏览器截图流 - 支持轮询获取新帧
 
 import { NextRequest, NextResponse } from 'next/server';
