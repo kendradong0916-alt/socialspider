@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
 
 
     const apiKey = process.env.SKYVERN_API_KEY;
-    const apiUrl = process.env.SKYVERN_API_URL || 'https://api.skyvern.com';
+    const apiUrl = process.env.SKYVERN_API_URL || 'https://api.skyvern.com/v1';
 
     if (!apiKey) {
       return NextResponse.json(
