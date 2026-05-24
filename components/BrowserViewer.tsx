@@ -45,7 +45,12 @@ export function BrowserViewer({ taskId, status }: Props) {
 
   useEffect(() => {
     mountedRef.current = true;
-    if (!ACTIVE.has(status)) return;
+
+    if (!ACTIVE.has(status)) {
+      // For completed/failed tasks: one-time fetch to show the final screenshot
+      fetchFrame();
+      return () => { mountedRef.current = false; };
+    }
 
     const schedule = () => {
       fetchFrame().finally(() => {

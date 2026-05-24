@@ -150,15 +150,19 @@ export default function TaskDetailPage({ params }: { params: { id: string } }) {
       </div>
 
       {/* Results section */}
-      {task.status === 'completed' && task.result && (
+      {task.status === 'completed' && (
         <div className="max-w-7xl mx-auto px-6 pb-8">
           <div className="bg-white rounded-xl border border-green-200 p-6">
             <h3 className="font-semibold text-gray-900 mb-3 flex items-center gap-2">
               <span className="text-green-500">✓</span> Extracted Results
             </h3>
-            <pre className="bg-gray-50 rounded-lg p-4 text-xs text-gray-700 overflow-auto max-h-96 border border-gray-100">
-              {JSON.stringify(task.result, null, 2)}
-            </pre>
+            {task.result ? (
+              <pre className="bg-gray-50 rounded-lg p-4 text-xs text-gray-700 overflow-auto max-h-96 border border-gray-100">
+                {JSON.stringify(task.result, null, 2)}
+              </pre>
+            ) : (
+              <p className="text-sm text-gray-500">Task completed. Skyvern did not return structured output for this run.</p>
+            )}
           </div>
         </div>
       )}
