@@ -1,6 +1,11 @@
 import type { SkyvernTask, SkyvernStep } from './types';
 
-const BASE_URL = process.env.SKYVERN_API_URL || 'https://api.skyvern.com/api/v1';
+// Normalise: always end with /api/v1 regardless of what the env var contains
+function normaliseBase(url: string): string {
+  const trimmed = url.replace(/\/+$/, '');
+  return trimmed.endsWith('/api/v1') ? trimmed : `${trimmed}/api/v1`;
+}
+const BASE_URL = normaliseBase(process.env.SKYVERN_API_URL || 'https://api.skyvern.com');
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const apiKey = process.env.SKYVERN_API_KEY;
