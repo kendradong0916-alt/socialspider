@@ -114,6 +114,11 @@ export function BrowserViewer({ taskId, status }: Props) {
             ) : (
               <p className="text-sm text-gray-500">No screenshot available</p>
             )}
+            {isActive && !src && (
+              <p className="text-xs text-gray-500 mt-2 max-w-xs text-center">
+                Skyvern is starting a browser session. First screenshot appears after the first step completes (~1–2 min).
+              </p>
+            )}
           </div>
         )}
 
