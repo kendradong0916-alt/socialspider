@@ -32,6 +32,8 @@ export function CreateTaskForm() {
   const [sessionState, setSessionState] = useState<SessionState>('idle');
   const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const mountedRef = useRef(true);
+  const sessionUsedRef = useRef(false);
+  const sessionIdRef = useRef<string | null>(null);
 
   // Pre-warm a browser session on mount
   useEffect(() => {
@@ -43,9 +45,14 @@ export function CreateTaskForm() {
         const res = await fetch('/api/sessions', { method: 'POST' });
         if (!res.ok || !mountedRef.current) return;
         const data = await res.json();
-        if (!mountedRef.current) return;
+        if (!mountedRef.current) {
+          // Component unmounted before response — close immediately
+          fetch(`/api/sessions/${data.session_id}`, { method: 'DELETE' });
+          return;
+        }
 
         setSessionId(data.session_id);
+        sessionIdRef.current = data.session_id;
 
         // Poll until session is ready (status === 'running')
         const poll = async () => {
@@ -75,6 +82,10 @@ export function CreateTaskForm() {
     return () => {
       mountedRef.current = false;
       if (pollRef.current) clearTimeout(pollRef.current);
+      // Close the session if it was never handed off to a task
+      if (sessionIdRef.current && !sessionUsedRef.current) {
+        fetch(`/api/sessions/${sessionIdRef.current}`, { method: 'DELETE' });
+      }
     };
   }, []);
 
@@ -84,14 +95,16 @@ export function CreateTaskForm() {
     setLoading(true);
 
     try {
+      const usingSession = sessionState === 'ready' && sessionId;
+      if (usingSession) sessionUsedRef.current = true;
+
       const res = await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           url: url.trim(),
           prompt: prompt.trim(),
-          // Pass pre-warmed session if ready
-          browser_session_id: sessionState === 'ready' ? sessionId : undefined,
+          browser_session_id: usingSession ? sessionId : undefined,
         }),
       });
 
