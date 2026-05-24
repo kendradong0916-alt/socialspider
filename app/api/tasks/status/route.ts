@@ -2,9 +2,7 @@
 // 查询任务状态
 
 import { NextRequest, NextResponse } from 'next/server';
-
-// 简单的内存存储（与 create.ts 共享）
-const taskStates: Record<string, any> = {};
+import { taskStates } from '../utils';
 
 export async function GET(request: NextRequest) {
   try {
@@ -48,23 +46,5 @@ export async function GET(request: NextRequest) {
       { error: '获取任务状态失败' },
       { status: 500 }
     );
-  }
-}
-
-// 辅助函数：初始化任务状态
-export function initializeTaskState(taskId: string, data: any) {
-  taskStates[taskId] = {
-    ...data,
-    created_at: new Date().toISOString(),
-  };
-}
-
-// 辅助函数：更新任务状态
-export function updateTaskState(taskId: string, updates: any) {
-  if (taskStates[taskId]) {
-    taskStates[taskId] = {
-      ...taskStates[taskId],
-      ...updates,
-    };
   }
 }

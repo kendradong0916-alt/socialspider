@@ -2,9 +2,7 @@
 // 创建数据采集任务
 
 import { NextRequest, NextResponse } from 'next/server';
-
-// 简单的内存存储，生产环境使用 Supabase
-const tasks: Record<string, any> = {};
+import { tasks } from '../utils';
 
 export async function POST(request: NextRequest) {
   try {
@@ -48,18 +46,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     );
   }
-}
-
-// 辅助函数：获取任务信息（用于其他 API 调用）
-export function getTaskInfo(taskId: string) {
-  return tasks[taskId] || null;
-}
-
-// 辅助函数：更新任务信息
-export function updateTask(taskId: string, updates: any) {
-  if (tasks[taskId]) {
-    tasks[taskId] = { ...tasks[taskId], ...updates };
-    return tasks[taskId];
-  }
-  return null;
 }
