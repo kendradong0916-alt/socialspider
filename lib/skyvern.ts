@@ -55,7 +55,16 @@ export const skyvern = {
   },
 
   getSteps(taskId: string): Promise<SkyvernStep[]> {
-    return request<SkyvernStep[]>(`/tasks/${taskId}/steps`);
+    return request<unknown>(`/tasks/${taskId}/steps`).then((data) => {
+      // Handle both direct array and paginated {items:[]} / {steps:[]} formats
+      if (Array.isArray(data)) return data as SkyvernStep[];
+      if (data && typeof data === 'object') {
+        const d = data as Record<string, unknown>;
+        if (Array.isArray(d.items)) return d.items as SkyvernStep[];
+        if (Array.isArray(d.steps)) return d.steps as SkyvernStep[];
+      }
+      return [];
+    });
   },
 
   cancelTask(taskId: string): Promise<void> {

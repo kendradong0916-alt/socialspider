@@ -13,14 +13,13 @@ export async function GET(
     .eq('id', params.id)
     .single();
 
-  if (!task?.skyvern_task_id) {
-    return NextResponse.json([]);
-  }
+  if (!task?.skyvern_task_id) return NextResponse.json([]);
 
   try {
     const steps = await skyvern.getSteps(task.skyvern_task_id);
     return NextResponse.json(steps);
-  } catch {
-    return NextResponse.json([]);
+  } catch (err) {
+    // Return error detail so we can debug from the browser
+    return NextResponse.json({ error: String(err), steps: [] }, { status: 200 });
   }
 }
