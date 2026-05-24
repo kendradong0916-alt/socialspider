@@ -11,7 +11,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const apiKey = process.env.SKYVERN_API_KEY;
   if (!apiKey) throw new Error('SKYVERN_API_KEY is not configured');
 
-  const res = await fetch(`${BASE_URL}${path}`, {
+  const fullUrl = `${BASE_URL}${path}`;
+  const res = await fetch(fullUrl, {
     ...init,
     headers: {
       'x-api-key': apiKey,
@@ -22,7 +23,7 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!res.ok) {
     const body = await res.text().catch(() => '');
-    throw new Error(`Skyvern ${res.status}: ${body}`);
+    throw new Error(`Skyvern ${res.status} [${fullUrl}]: ${body}`);
   }
 
   return res.json() as Promise<T>;
