@@ -7,12 +7,17 @@ export async function POST(request: NextRequest) {
   try {
     const { website } = await request.json();
 
+    // 添加这两行日志
+    console.log('Skyvern API Key:', process.env.SKYVERN_API_KEY?.substring(0, 10) + '...');
+    console.log('All env vars:', Object.keys(process.env).filter(k => k.includes('SKYVERN')));
+
     if (!website) {
       return NextResponse.json(
         { error: '缺少必要参数：website' },
         { status: 400 }
       );
     }
+
 
     const apiKey = process.env.SKYVERN_API_KEY;
     const apiUrl = process.env.SKYVERN_API_URL || 'https://api.skyvern.com';
