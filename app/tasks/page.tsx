@@ -103,7 +103,15 @@ export default function TasksPage() {
           ) : (
             <div className="space-y-3">
               {tasks.map((t) => (
-                <TaskCard key={t.id} task={t} />
+                <TaskCard
+                  key={t.id}
+                  task={t}
+                  onCancel={(id) =>
+                    setTasks((prev) =>
+                      prev.map((x) => x.id === id ? { ...x, status: 'cancelled' } : x)
+                    )
+                  }
+                />
               ))}
             </div>
           )}

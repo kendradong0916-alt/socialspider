@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import Link from 'next/link';
 import type { Task } from '@/lib/types';
 
@@ -14,9 +15,24 @@ const statusConfig = {
   cancelled:  { label: 'Cancelled',  cls: 'bg-gray-100 text-gray-500' },
 };
 
-export function TaskCard({ task }: { task: Task }) {
+interface TaskCardProps {
+  task: Task;
+  onCancel?: (id: string) => void;
+}
+
+export function TaskCard({ task, onCancel }: TaskCardProps) {
+  const [cancelling, setCancelling] = useState(false);
   const cfg = statusConfig[task.status] ?? statusConfig.created;
-  const isActive = ['queued', 'running'].includes(task.status);
+  const isActive = ['queued', 'running', 'created'].includes(task.status);
+
+  const handleCancel = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setCancelling(true);
+    await fetch(`/api/tasks/${task.id}`, { method: 'DELETE' });
+    onCancel?.(task.id);
+    setCancelling(false);
+  };
 
   return (
     <Link
@@ -28,12 +44,23 @@ export function TaskCard({ task }: { task: Task }) {
           <p className="text-sm font-medium text-gray-900 truncate">{task.url}</p>
           <p className="mt-1 text-xs text-gray-500 line-clamp-2">{task.prompt}</p>
         </div>
-        <span className={`flex-shrink-0 text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1.5 ${cfg.cls}`}>
-          {isActive && (
-            <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className={`text-xs font-medium px-2.5 py-1 rounded-full flex items-center gap-1.5 ${cfg.cls}`}>
+            {isActive && (
+              <span className="w-1.5 h-1.5 rounded-full bg-current animate-pulse" />
+            )}
+            {cfg.label}
+          </span>
+          {isActive && onCancel && (
+            <button
+              onClick={handleCancel}
+              disabled={cancelling}
+              className="text-xs text-red-500 hover:text-red-700 font-medium px-2 py-1 rounded-lg hover:bg-red-50 transition-colors disabled:opacity-40"
+            >
+              {cancelling ? '…' : 'Stop'}
+            </button>
           )}
-          {cfg.label}
-        </span>
+        </div>
       </div>
       <p className="mt-3 text-xs text-gray-400">
         {new Date(task.created_at).toLocaleString()}
