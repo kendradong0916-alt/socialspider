@@ -24,7 +24,6 @@ export async function POST(req: NextRequest) {
 
   const db = createServerClient();
 
-  // Persist to Supabase first so we have an id even if Skyvern fails
   const { data: row, error: insertErr } = await db
     .from('tasks')
     .insert({ url, prompt, status: 'created' })
@@ -35,10 +34,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: insertErr?.message ?? 'DB insert failed' }, { status: 500 });
   }
 
-  // Create task in Skyvern
   try {
     const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? '';
-    const skyvernTask = await skyvern.createTask({
+    const skyvernRun = await skyvern.createTask({
       url,
       prompt,
       webhookUrl: appUrl ? `${appUrl}/api/webhook/skyvern` : undefined,
@@ -46,14 +44,13 @@ export async function POST(req: NextRequest) {
 
     const { data: updated } = await db
       .from('tasks')
-      .update({ skyvern_task_id: skyvernTask.task_id, status: 'queued' })
+      .update({ skyvern_task_id: skyvernRun.run_id, status: 'queued' })
       .eq('id', row.id)
       .select()
       .single();
 
     return NextResponse.json(updated, { status: 201 });
   } catch (err) {
-    // Update status to failed so the UI doesn't show it as stuck
     await db
       .from('tasks')
       .update({ status: 'failed', failure_reason: String(err) })

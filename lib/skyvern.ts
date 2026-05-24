@@ -1,11 +1,7 @@
-import type { SkyvernTask, SkyvernStep } from './types';
+import type { SkyvernStep } from './types';
 
-// Normalise: always end with /api/v1 regardless of what the env var contains
-function normaliseBase(url: string): string {
-  const trimmed = url.replace(/\/+$/, '');
-  return trimmed.endsWith('/api/v1') ? trimmed : `${trimmed}/api/v1`;
-}
-const BASE_URL = normaliseBase(process.env.SKYVERN_API_URL || 'https://api.skyvern.com');
+// Base URL — strip trailing slash, never append /api/v1 (new API is at /v1/run/*)
+const BASE_URL = (process.env.SKYVERN_API_URL || 'https://api.skyvern.com').replace(/\/+$/, '');
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const apiKey = process.env.SKYVERN_API_KEY;
@@ -29,6 +25,26 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
+export interface SkyvernTaskRun {
+  run_id: string;
+  status: string;
+  output: Record<string, unknown> | null;
+  screenshot_urls: string[] | null;
+  recording_url: string | null;
+  failure_reason: string | null;
+  step_count: number | null;
+  created_at: string;
+  modified_at: string;
+}
+
+export interface SkyvernTimelineEntry {
+  type: string;
+  step?: SkyvernStep;
+  description?: string;
+  screenshot_url?: string;
+  timestamp?: string;
+}
+
 export interface CreateTaskInput {
   url: string;
   prompt: string;
@@ -37,45 +53,40 @@ export interface CreateTaskInput {
 }
 
 export const skyvern = {
-  createTask(input: CreateTaskInput): Promise<SkyvernTask> {
-    return request<SkyvernTask>('/tasks', {
+  createTask(input: CreateTaskInput): Promise<SkyvernTaskRun> {
+    return request<SkyvernTaskRun>('/v1/run/tasks', {
       method: 'POST',
       body: JSON.stringify({
         url: input.url,
-        navigation_goal: input.prompt,
-        data_extraction_goal: input.prompt,
-        webhook_callback_url: input.webhookUrl ?? null,
-        max_steps_per_run: input.maxSteps ?? 25,
+        prompt: input.prompt,
+        webhook_url: input.webhookUrl ?? null,
+        max_steps: input.maxSteps ?? 25,
+        engine: 'skyvern-2.0',
       }),
     });
   },
 
-  getTask(taskId: string): Promise<SkyvernTask> {
-    return request<SkyvernTask>(`/tasks/${taskId}`);
+  getTask(runId: string): Promise<SkyvernTaskRun> {
+    return request<SkyvernTaskRun>(`/v1/run/tasks/${runId}`);
   },
 
-  getSteps(taskId: string): Promise<SkyvernStep[]> {
-    return request<unknown>(`/tasks/${taskId}/steps`).then((data) => {
-      // Handle both direct array and paginated {items:[]} / {steps:[]} formats
-      if (Array.isArray(data)) return data as SkyvernStep[];
-      if (data && typeof data === 'object') {
-        const d = data as Record<string, unknown>;
-        if (Array.isArray(d.items)) return d.items as SkyvernStep[];
-        if (Array.isArray(d.steps)) return d.steps as SkyvernStep[];
-      }
-      return [];
-    });
+  getSteps(runId: string): Promise<SkyvernStep[]> {
+    // Try timeline endpoint first, fall back to steps
+    return request<unknown>(`/v1/run/${runId}/timeline`)
+      .then((data) => {
+        if (Array.isArray(data)) return data as SkyvernStep[];
+        if (data && typeof data === 'object') {
+          const d = data as Record<string, unknown>;
+          if (Array.isArray(d.items)) return d.items as SkyvernStep[];
+          if (Array.isArray(d.steps)) return d.steps as SkyvernStep[];
+          if (Array.isArray(d.timeline)) return d.timeline as SkyvernStep[];
+        }
+        return [];
+      })
+      .catch(() => []);
   },
 
-  cancelTask(taskId: string): Promise<void> {
-    return request<void>(`/tasks/${taskId}/cancel`, { method: 'POST' });
-  },
-
-  async getStepScreenshot(taskId: string, stepId: string): Promise<Response> {
-    const apiKey = process.env.SKYVERN_API_KEY;
-    if (!apiKey) throw new Error('SKYVERN_API_KEY is not configured');
-    return fetch(`${BASE_URL}/tasks/${taskId}/steps/${stepId}/screenshot`, {
-      headers: { 'x-api-key': apiKey },
-    });
+  cancelTask(runId: string): Promise<void> {
+    return request<void>(`/v1/run/${runId}/cancel`, { method: 'POST' });
   },
 };

@@ -21,16 +21,13 @@ export interface Task {
 }
 
 export interface SkyvernTask {
-  task_id: string;
+  run_id: string;
   status: TaskStatus;
-  url: string;
-  navigation_goal: string | null;
-  data_extraction_goal: string | null;
-  extracted_information: Record<string, unknown> | null;
-  failure_reason: string | null;
-  errors: unknown[];
-  screenshot_url: string | null;
+  output: Record<string, unknown> | null;
+  screenshot_urls: string[] | null;
   recording_url: string | null;
+  failure_reason: string | null;
+  step_count: number | null;
   created_at: string;
   modified_at: string;
 }

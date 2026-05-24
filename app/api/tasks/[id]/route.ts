@@ -17,18 +17,15 @@ export async function GET(
     return NextResponse.json({ error: 'Not found' }, { status: 404 });
   }
 
-  // Sync status from Skyvern while the task is in-flight
   if (task.skyvern_task_id && ['queued', 'running'].includes(task.status)) {
     try {
       const live = await skyvern.getTask(task.skyvern_task_id);
-      const changed = live.status !== task.status;
-
-      if (changed) {
+      if (live.status !== task.status) {
         const { data: updated } = await db
           .from('tasks')
           .update({
             status: live.status,
-            result: live.extracted_information ?? null,
+            result: live.output ?? null,
             failure_reason: live.failure_reason ?? null,
             updated_at: new Date().toISOString(),
           })
@@ -39,7 +36,7 @@ export async function GET(
         return NextResponse.json(updated ?? task);
       }
     } catch {
-      // Return cached state if Skyvern is unreachable
+      // Return cached state if Skyvern unreachable
     }
   }
 

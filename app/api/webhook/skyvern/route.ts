@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServerClient } from '@/lib/supabase-server';
 
-// Skyvern calls this URL when a task finishes (set via webhook_callback_url)
+// Skyvern calls this when a run finishes
 export async function POST(req: NextRequest) {
   let payload: Record<string, unknown>;
   try {
@@ -10,15 +10,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
   }
 
-  const { task_id, status, extracted_information, failure_reason } = payload as {
-    task_id?: string;
-    status?: string;
-    extracted_information?: Record<string, unknown>;
-    failure_reason?: string;
-  };
+  // Skyvern sends run_id (new API) or task_id (legacy)
+  const runId = (payload.run_id ?? payload.task_id) as string | undefined;
+  const status = payload.status as string | undefined;
 
-  if (!task_id || !status) {
-    return NextResponse.json({ error: 'Missing task_id or status' }, { status: 400 });
+  if (!runId || !status) {
+    return NextResponse.json({ error: 'Missing run_id/status' }, { status: 400 });
   }
 
   const db = createServerClient();
@@ -26,11 +23,11 @@ export async function POST(req: NextRequest) {
     .from('tasks')
     .update({
       status,
-      result: extracted_information ?? null,
-      failure_reason: failure_reason ?? null,
+      result: (payload.output ?? payload.extracted_information ?? null) as object | null,
+      failure_reason: (payload.failure_reason ?? null) as string | null,
       updated_at: new Date().toISOString(),
     })
-    .eq('skyvern_task_id', task_id);
+    .eq('skyvern_task_id', runId);
 
   return NextResponse.json({ ok: true });
 }
