@@ -1,5 +1,6 @@
 // app/api/profile/init.ts
 // 初始化浏览器会话
+//test
 
 import { NextRequest, NextResponse } from 'next/server';
 
