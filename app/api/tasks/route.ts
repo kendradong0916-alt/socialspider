@@ -16,7 +16,11 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
-  const { url, prompt } = body as { url?: string; prompt?: string };
+  const { url, prompt, browser_session_id } = body as {
+    url?: string;
+    prompt?: string;
+    browser_session_id?: string;
+  };
 
   if (!url || !prompt) {
     return NextResponse.json({ error: 'url and prompt are required' }, { status: 400 });
@@ -40,6 +44,7 @@ export async function POST(req: NextRequest) {
       url,
       prompt,
       webhookUrl: appUrl ? `${appUrl}/api/webhook/skyvern` : undefined,
+      browserSessionId: browser_session_id,
     });
 
     const { data: updated } = await db

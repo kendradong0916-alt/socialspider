@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 const EXAMPLES = [
@@ -18,12 +18,65 @@ const EXAMPLES = [
   },
 ];
 
+type SessionState = 'idle' | 'creating' | 'ready' | 'error';
+
 export function CreateTaskForm() {
   const router = useRouter();
   const [url, setUrl] = useState('');
   const [prompt, setPrompt] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Browser session pre-warming
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [sessionState, setSessionState] = useState<SessionState>('idle');
+  const pollRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const mountedRef = useRef(true);
+
+  // Pre-warm a browser session on mount
+  useEffect(() => {
+    mountedRef.current = true;
+
+    const warm = async () => {
+      setSessionState('creating');
+      try {
+        const res = await fetch('/api/sessions', { method: 'POST' });
+        if (!res.ok || !mountedRef.current) return;
+        const data = await res.json();
+        if (!mountedRef.current) return;
+
+        setSessionId(data.session_id);
+
+        // Poll until session is ready (status === 'running')
+        const poll = async () => {
+          if (!mountedRef.current) return;
+          try {
+            const r = await fetch(`/api/sessions/${data.session_id}`);
+            if (!r.ok || !mountedRef.current) return;
+            const s = await r.json();
+            if (s.ready) {
+              setSessionState('ready');
+            } else {
+              pollRef.current = setTimeout(poll, 2000);
+            }
+          } catch {
+            if (mountedRef.current) setSessionState('error');
+          }
+        };
+
+        poll();
+      } catch {
+        if (mountedRef.current) setSessionState('error');
+      }
+    };
+
+    warm();
+
+    return () => {
+      mountedRef.current = false;
+      if (pollRef.current) clearTimeout(pollRef.current);
+    };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -34,14 +87,19 @@ export function CreateTaskForm() {
       const res = await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: url.trim(), prompt: prompt.trim() }),
+        body: JSON.stringify({
+          url: url.trim(),
+          prompt: prompt.trim(),
+          // Pass pre-warmed session if ready
+          browser_session_id: sessionState === 'ready' ? sessionId : undefined,
+        }),
       });
 
       let data: { id?: string; error?: string } = {};
       try {
         data = await res.json();
       } catch {
-        setError(`Server error (${res.status}) — check Vercel environment variables (NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)`);
+        setError(`Server error (${res.status}) — check environment variables`);
         return;
       }
 
@@ -63,13 +121,31 @@ export function CreateTaskForm() {
     setPrompt(ex.prompt);
   };
 
+  const sessionBadge = {
+    idle:     null,
+    creating: { label: 'Warming up browser…', cls: 'bg-yellow-50 text-yellow-700 border-yellow-200' },
+    ready:    { label: '⚡ Browser ready', cls: 'bg-green-50 text-green-700 border-green-200' },
+    error:    { label: 'Browser unavailable (task will use cold start)', cls: 'bg-gray-50 text-gray-500 border-gray-200' },
+  }[sessionState];
+
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
+      {/* Browser session status */}
+      {sessionBadge && (
+        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border text-xs font-medium ${sessionBadge.cls}`}>
+          {sessionState === 'creating' && (
+            <svg className="w-3 h-3 animate-spin flex-shrink-0" viewBox="0 0 24 24" fill="none">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+            </svg>
+          )}
+          {sessionBadge.label}
+        </div>
+      )}
+
       {/* URL */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1.5">
-          Target URL
-        </label>
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">Target URL</label>
         <input
           type="url"
           value={url}
@@ -83,9 +159,7 @@ export function CreateTaskForm() {
 
       {/* Prompt */}
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1.5">
-          Task Instructions
-        </label>
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">Task Instructions</label>
         <textarea
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
@@ -97,14 +171,12 @@ export function CreateTaskForm() {
         />
       </div>
 
-      {/* Error */}
       {error && (
         <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
       )}
 
-      {/* Submit */}
       <button
         type="submit"
         disabled={loading || !url.trim() || !prompt.trim()}
@@ -118,6 +190,8 @@ export function CreateTaskForm() {
             </svg>
             Creating task…
           </>
+        ) : sessionState === 'ready' ? (
+          '⚡ Run Task (browser ready) →'
         ) : (
           'Run Task with Skyvern →'
         )}

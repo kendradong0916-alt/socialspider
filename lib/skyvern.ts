@@ -45,11 +45,21 @@ export interface SkyvernTimelineEntry {
   timestamp?: string;
 }
 
+export interface SkyvernBrowserSession {
+  browser_session_id: string;
+  status: string | null;
+  browser_address: string | null;
+  app_url: string | null;
+  vnc_streaming_supported: boolean;
+  created_at: string;
+}
+
 export interface CreateTaskInput {
   url: string;
   prompt: string;
   webhookUrl?: string;
   maxSteps?: number;
+  browserSessionId?: string;
 }
 
 export const skyvern = {
@@ -62,6 +72,7 @@ export const skyvern = {
         webhook_url: input.webhookUrl ?? null,
         max_steps: input.maxSteps ?? 25,
         engine: 'skyvern-2.0',
+        browser_session_id: input.browserSessionId ?? null,
       }),
     });
   },
@@ -71,7 +82,6 @@ export const skyvern = {
   },
 
   getSteps(runId: string): Promise<SkyvernStep[]> {
-    // Try timeline endpoint first, fall back to steps
     return request<unknown>(`/v1/run/${runId}/timeline`)
       .then((data) => {
         if (Array.isArray(data)) return data as SkyvernStep[];
@@ -88,5 +98,21 @@ export const skyvern = {
 
   cancelTask(runId: string): Promise<void> {
     return request<void>(`/v1/run/${runId}/cancel`, { method: 'POST' });
+  },
+
+  // Browser session management
+  createBrowserSession(timeoutMinutes = 10): Promise<SkyvernBrowserSession> {
+    return request<SkyvernBrowserSession>('/v1/browser_sessions', {
+      method: 'POST',
+      body: JSON.stringify({ timeout: timeoutMinutes }),
+    });
+  },
+
+  getBrowserSession(sessionId: string): Promise<SkyvernBrowserSession> {
+    return request<SkyvernBrowserSession>(`/v1/browser_sessions/${sessionId}`);
+  },
+
+  closeBrowserSession(sessionId: string): Promise<void> {
+    return request<void>(`/v1/browser_sessions/${sessionId}/close`, { method: 'POST' });
   },
 };
