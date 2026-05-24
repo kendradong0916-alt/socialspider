@@ -37,10 +37,16 @@ export function CreateTaskForm() {
         body: JSON.stringify({ url: url.trim(), prompt: prompt.trim() }),
       });
 
-      const data = await res.json();
+      let data: { id?: string; error?: string } = {};
+      try {
+        data = await res.json();
+      } catch {
+        setError(`Server error (${res.status}) — check Vercel environment variables (NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)`);
+        return;
+      }
 
       if (!res.ok) {
-        setError(data.error ?? 'Failed to create task');
+        setError(data.error ?? `Server error ${res.status}`);
         return;
       }
 
